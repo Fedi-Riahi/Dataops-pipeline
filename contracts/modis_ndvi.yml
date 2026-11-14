@@ -1,0 +1,11 @@
+name: modis_ndvi
+owner: TODO
+primary_key: [county_fips, date]
+freshness_hours: 480
+columns:
+  county_fips: {type: string}
+  date: {type: date}
+  ndvi_mean: {type: float, min: -0.2, max: 1.0, nullable: true}
+  ndvi_median: {type: float, min: -0.2, max: 1.0, nullable: true}
+  valid_pixels: {type: int, min: 0, max: 81}
+  total_pixels: {type: int, min: 1, max: 81}
