@@ -4,4 +4,9 @@ sources:
     schema: raw
     tables:
       - name: nasa_power_daily
+        config:
+          loaded_at_field: cast(date as timestamp)
+          freshness:
+            warn_after: {count: 3, period: day}
+            error_after: {count: 5, period: day}
       - name: nass_yield
