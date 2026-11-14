@@ -11,12 +11,14 @@ from ingestion import nasa_power, nass
 from ingestion.common import archive_parquet, load_contract, upsert, validate
 
 
-def alert(flow, flow_run, state):
-    """Failure hook: post to a webhook if configured."""
+def notify(msg: str) -> None:
     url = os.getenv("ALERT_WEBHOOK_URL")
-    msg = f"Pipeline '{flow.name}' run {flow_run.name} ended in {state.name}"
     if url:
         requests.post(url, json={"text": msg, "content": msg}, timeout=10)
+
+
+def alert(flow, flow_run, state):
+    notify(f"Pipeline '{flow.name}' run {flow_run.name} ended in {state.name}")
 
 
 @task(retries=2, retry_delay_seconds=30)
@@ -44,6 +46,12 @@ def ingest_yield():
     archive_parquet(df, "raw/nass_yield/latest.parquet")
     return upsert(df, "nass_yield", contract["primary_key"])
 
+@task
+def check_freshness():
+    subprocess.run(
+        ["dbt", "source", "freshness", "--project-dir", "dbt", "--profiles-dir", "dbt"],
+        check=True,
+    )
 
 @task
 def run_dbt():
@@ -55,7 +63,8 @@ def iowa_daily():
     log = get_run_logger()
     log.info("weather rows: %s", ingest_weather())
     log.info("yield rows: %s", ingest_yield())
-    run_dbt()  # dbt tests fail -> flow fails -> alert; nothing gets published
+    check_freshness()
+    run_dbt()
 
 
 @task(retries=3, retry_delay_seconds=60)
