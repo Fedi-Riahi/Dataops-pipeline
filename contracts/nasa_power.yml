@@ -1,0 +1,10 @@
+name: nasa_power_daily
+owner: TODO
+primary_key: [county_fips, date]
+freshness_hours: 72
+columns:
+  county_fips: {type: string}
+  date: {type: date}
+  temp_c: {type: float, min: -50, max: 60, nullable: true}
+  precip_mm: {type: float, min: 0, max: 500, nullable: true}
+  solar_mj_m2: {type: float, min: 0, max: 40, nullable: true}

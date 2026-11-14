@@ -1,0 +1,14 @@
+version: 2
+models:
+  - name: stg_nasa_power
+    columns:
+      - name: county_fips
+        tests: [not_null]
+      - name: obs_date
+        tests: [not_null]
+  - name: stg_nass_yield
+    columns:
+      - name: county_fips
+        tests: [not_null]
+      - name: yield_per_acre
+        tests: [not_null]

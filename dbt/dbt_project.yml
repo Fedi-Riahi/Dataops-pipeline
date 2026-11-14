@@ -1,0 +1,15 @@
+name: iowa_yield
+version: "0.1.0"
+profile: iowa_yield
+model-paths: ["models"]
+seed-paths: ["../ingestion"]
+test-paths: ["tests"]
+seeds:
+  iowa_yield:
+    counties:
+      +column_types: {county_fips: varchar}
+models:
+  iowa_yield:
+    staging: {+materialized: view}
+    intermediate: {+materialized: view}
+    marts: {+materialized: table}

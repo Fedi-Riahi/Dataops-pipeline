@@ -1,0 +1,18 @@
+version: 2
+models:
+  - name: dim_county
+    columns:
+      - name: county_fips
+        tests: [unique, not_null]
+  - name: fct_county_year
+    columns:
+      - name: county_year_key
+        tests: [unique, not_null]
+      - name: county_fips
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_county')
+                field: county_fips
+      - name: yield_per_acre
+        tests: [not_null]

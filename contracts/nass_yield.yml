@@ -1,0 +1,10 @@
+name: nass_yield
+owner: TODO
+primary_key: [county_fips, commodity, year]
+freshness_hours: 8760   # annual data
+columns:
+  county_fips: {type: string}
+  commodity: {type: string}
+  year: {type: int, min: 1990, max: 2100}
+  yield_per_acre: {type: float, min: 0, max: 400}
+  unit_desc: {type: string, allowed: ["BU / ACRE"]}
