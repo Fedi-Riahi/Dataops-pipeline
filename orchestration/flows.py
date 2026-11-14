@@ -6,8 +6,8 @@ from datetime import date, timedelta
 import pandas as pd
 import requests
 from prefect import flow, get_run_logger, task
-
-from ingestion import nasa_power, nass
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from ingestion import modis, nasa_power, nass
 from ingestion.common import archive_parquet, load_contract, upsert, validate
 
 
@@ -46,6 +46,59 @@ def ingest_yield():
     archive_parquet(df, "raw/nass_yield/latest.parquet")
     return upsert(df, "nass_yield", contract["primary_key"])
 
+def _load_ndvi(df: pd.DataFrame, key: str) -> int:
+    if df.empty:
+        return 0
+    contract = load_contract("modis_ndvi")
+    validate(df, contract)
+    archive_parquet(df, key)
+    return upsert(df, "modis_ndvi", contract["primary_key"])
+
+
+@task(retries=2, retry_delay_seconds=60)
+def ingest_ndvi(days_back: int = 32):
+    counties = pd.read_csv("ingestion/counties.csv", dtype={"county_fips": str})
+    end = date.today()
+    start = end - timedelta(days=days_back)
+    frames = []
+    for r in counties.itertuples():
+        frames.append(modis.fetch_ndvi(r.county_fips, r.lat, r.lon,
+                                       modis.modis_date(start), modis.modis_date(end)))
+        time.sleep(0.5)
+    return _load_ndvi(pd.concat(frames, ignore_index=True), f"raw/modis_ndvi/{end}.parquet")
+
+
+def _fetch_county_ndvi(fips: str, lat: float, lon: float, years: list[int]) -> pd.DataFrame:
+    frames = []
+    for y in years:
+        for a, b in [(97, 161), (177, 241), (257, 289)]:  # Apr-Oct, 5/5/3 dates
+            frames.append(modis.fetch_ndvi(fips, lat, lon, f"A{y}{a:03d}", f"A{y}{b:03d}"))
+    return pd.concat(frames, ignore_index=True)
+
+
+@flow(name="iowa-ndvi-backfill")
+def ndvi_backfill(start_year: int = 2023, workers: int = 4):
+    log = get_run_logger()
+    years = list(range(start_year, date.today().year + 1))
+    counties = pd.read_csv("ingestion/counties.csv", dtype={"county_fips": str})
+    failed = []
+    # Downloads run in parallel; DuckDB writes stay sequential (single writer).
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_fetch_county_ndvi, r.county_fips, r.lat, r.lon, years): r
+            for r in counties.itertuples()
+        }
+        for fut in as_completed(futures):
+            r = futures[fut]
+            try:
+                n = _load_ndvi(fut.result(), f"raw/modis_ndvi/backfill/{r.county_fips}.parquet")
+                log.info("%s %s: %s rows", r.county_fips, r.county_name, n)
+            except Exception:  # noqa: BLE001
+                log.error("%s %s failed, rerun to fill it", r.county_fips, r.county_name)
+                failed.append(r.county_fips)
+    if failed:
+        log.warning("failed counties: %s", failed)
+
 @task
 def check_freshness():
     subprocess.run(
@@ -63,6 +116,7 @@ def iowa_daily():
     log = get_run_logger()
     log.info("weather rows: %s", ingest_weather())
     log.info("yield rows: %s", ingest_yield())
+    log.info("ndvi rows: %s", ingest_ndvi())
     check_freshness()
     run_dbt()
 
