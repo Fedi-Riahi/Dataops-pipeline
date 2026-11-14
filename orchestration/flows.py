@@ -1,12 +1,13 @@
 import os
 import subprocess
-from datetime import date, timedelta
 import time
+from datetime import date, timedelta
+
 import pandas as pd
 import requests
 from prefect import flow, get_run_logger, task
 
-from ingestion import nass, nasa_power
+from ingestion import nasa_power, nass
 from ingestion.common import archive_parquet, load_contract, upsert, validate
 
 
@@ -37,7 +38,7 @@ def ingest_weather(days_back: int = 7):
 
 @task(retries=2, retry_delay_seconds=30)
 def ingest_yield():
-    df = nass.fetch_yield("CORN", int(os.getenv("START_YEAR", 2015)))
+    df = nass.fetch_yield("CORN", int(os.getenv("START_YEAR", "2015")))
     contract = load_contract("nass_yield")
     validate(df, contract)
     archive_parquet(df, "raw/nass_yield/latest.parquet")

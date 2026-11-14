@@ -4,6 +4,7 @@ import boto3
 import duckdb
 import pandas as pd
 import yaml
+from botocore.exceptions import ClientError
 
 WAREHOUSE = os.getenv("WAREHOUSE_PATH", "/data/warehouse.duckdb")
 
@@ -56,6 +57,6 @@ def archive_parquet(df: pd.DataFrame, key: str) -> None:
     bucket = os.environ["S3_BUCKET"]
     try:
         s3.head_bucket(Bucket=bucket)
-    except Exception:
+    except ClientError:
         s3.create_bucket(Bucket=bucket)
     s3.upload_file(local, bucket, key)
