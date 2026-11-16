@@ -1,7 +1,8 @@
+import time
+
 import numpy as np
 import pandas as pd
 import requests
-import time
 
 URL = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset"
 BAND = "250m_16_days_NDVI"
@@ -38,7 +39,7 @@ def fetch_ndvi(fips: str, lat: float, lon: float, start: str, end: str) -> pd.Da
             "date": pd.to_datetime(s["calendar_date"]).date(),
             "ndvi_mean": valid.mean() * SCALE if len(valid) else np.nan,
             "ndvi_median": float(np.median(valid)) * SCALE if len(valid) else np.nan,
-            "valid_pixels": int(len(valid)),
-            "total_pixels": int(len(px)),
+            "valid_pixels": len(valid),
+            "total_pixels": len(px),
         })
     return pd.DataFrame(rows, columns=COLUMNS)
