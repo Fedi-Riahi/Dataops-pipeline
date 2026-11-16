@@ -1,12 +1,13 @@
 import os
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 import pandas as pd
 import requests
 from prefect import flow, get_run_logger, task
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from ingestion import modis, nasa_power, nass
 from ingestion.common import archive_parquet, load_contract, upsert, validate
 
